@@ -5,15 +5,12 @@ package io.flutter.darwinvtomy.plugins.drm_wv_fp_player;
 // found in the LICENSE file.
 
 
-import static com.google.android.exoplayer2.Player.REPEAT_MODE_ALL;
-import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
-
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
 import android.util.LongSparseArray;
-import android.view.Surface;
+import android.view.SurfaceView;
 
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
@@ -46,6 +43,13 @@ import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.util.Util;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -56,12 +60,8 @@ import io.flutter.plugin.common.PluginRegistry.Registrar;
 import io.flutter.view.FlutterNativeView;
 import io.flutter.view.TextureRegistry;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import static com.google.android.exoplayer2.Player.REPEAT_MODE_ALL;
+import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 
 public class DrmWvFpPlayerPlugin implements MethodCallHandler {
     private static final String TAG = "VideoPlayerPlugin";
@@ -71,7 +71,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
 
         private SimpleExoPlayer exoPlayer;
 
-        private Surface surface;
+        private SurfaceView surfaceView;
 
         private final TextureRegistry.SurfaceTextureEntry textureEntry;
 
@@ -112,7 +112,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             Log.e(TAG, "VideoPlayer: URI LINK "+uri.toString() );
             exoPlayer.prepare(mediaSource);
 
-            setupVideoPlayer(eventChannel, textureEntry, result);
+            setupVideoPlayer(context, eventChannel, textureEntry, result);
         }
 
         VideoPlayer(
@@ -157,7 +157,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             }
 
             DefaultRenderersFactory renderersFactory =
-                    new DefaultRenderersFactory(context, DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF);
+                    new DefaultRenderersFactory(context);
             TrackSelector trackSelector = new DefaultTrackSelector();
             exoPlayer =
                     ExoPlayerFactory.newSimpleInstance(context,renderersFactory, trackSelector,drmSessionManager);
@@ -179,7 +179,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             MediaSource mediaSource = buildMediaSource(uri,mediaContent.extension, dataSourceFactory, context);
             exoPlayer.prepare(mediaSource);
 
-            setupVideoPlayer(eventChannel, textureEntry, result);
+            setupVideoPlayer(context, eventChannel, textureEntry, result);
         }
 
         private static boolean isFileOrAsset(Uri uri) {
@@ -220,6 +220,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
         }
 
         private void setupVideoPlayer(
+                Context context,
                 EventChannel eventChannel,
                 TextureRegistry.SurfaceTextureEntry textureEntry,
                 Result result) {
@@ -237,8 +238,10 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                         }
                     });
 
-            surface = new Surface(textureEntry.surfaceTexture());
-            exoPlayer.setVideoSurface(surface);
+            surfaceView = new SurfaceView(context);
+            exoPlayer.setVideoSurfaceView(surfaceView);
+            exoPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT);
+            exoPlayer.setPlayWhenReady(true);
             setAudioAttributes(exoPlayer);
 
             exoPlayer.addListener(
@@ -347,8 +350,8 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             }
             textureEntry.release();
             eventChannel.setStreamHandler(null);
-            if (surface != null) {
-                surface.release();
+            if (surfaceView != null) {
+                surfaceView.invalidate();
             }
             if (exoPlayer != null) {
                 exoPlayer.release();
