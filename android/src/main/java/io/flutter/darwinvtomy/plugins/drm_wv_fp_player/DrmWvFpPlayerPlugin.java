@@ -47,7 +47,6 @@ import com.google.android.exoplayer2.source.smoothstreaming.DefaultSsChunkSource
 import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelector;
-import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultAllocator;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
@@ -302,13 +301,6 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                             }
                         }
                     });
-
-            PlayerView player = new PlayerView(context);
-            player.setLayoutParams(new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
-            player.setPlayer(exoPlayer);
-            player.getSubtitleView().setBackgroundColor(0xFFFFFFFF);
 
             Map<String, Object> reply = new HashMap<>();
             reply.put("textureId", textureEntry.id());
