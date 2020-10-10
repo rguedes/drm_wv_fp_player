@@ -16,11 +16,12 @@ import android.util.Pair;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
+
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.Player;
@@ -30,14 +31,15 @@ import com.google.android.exoplayer2.audio.AudioAttributes;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.DrmInitData;
 import com.google.android.exoplayer2.drm.DrmSession;
+import com.google.android.exoplayer2.drm.ExoMediaCrypto;
+import com.google.android.exoplayer2.drm.ExoMediaDrm;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.HttpMediaDrmCallback;
 import com.google.android.exoplayer2.drm.OfflineLicenseHelper;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
-import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
-import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.dash.DashUtil;
 import com.google.android.exoplayer2.source.dash.DefaultDashChunkSource;
@@ -45,8 +47,6 @@ import com.google.android.exoplayer2.source.dash.manifest.DashManifest;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.source.smoothstreaming.DefaultSsChunkSource;
 import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
-import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
-import com.google.android.exoplayer2.trackselection.TrackSelector;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultAllocator;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
@@ -60,6 +60,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import io.flutter.plugin.common.EventChannel;
@@ -67,9 +68,7 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
-import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
-import io.flutter.view.FlutterNativeView;
 import io.flutter.view.TextureRegistry;
 
 import static android.content.Context.MODE_PRIVATE;
@@ -78,7 +77,7 @@ import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 
 public class DrmWvFpPlayerPlugin implements MethodCallHandler {
     private static final String TAG = "VideoPlayerPlugin";
-    private static FrameworkMediaDrm mediaDrm;
+    private static ExoMediaDrm.Provider<FrameworkMediaCrypto> mediaDrm;
     private final static String PREF_NAME = "MOVIDONE_EXOPLAYER";
     private final static String OFFLINE_KEY_ID = "OFFLINE_KEY_ID";
     private static OfflineLicenseHelper<FrameworkMediaCrypto> mOfflineLicenseHelper;
@@ -106,8 +105,8 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             this.eventChannel = eventChannel;
             this.textureEntry = textureEntry;
 
-            TrackSelector trackSelector = new DefaultTrackSelector();
-            exoPlayer = ExoPlayerFactory.newSimpleInstance(context, trackSelector);
+            DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context);
+            exoPlayer = new SimpleExoPlayer.Builder(context, renderersFactory).build();
 
             Uri uri = Uri.parse(dataSource);
 
@@ -124,7 +123,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                                 true);
             }
 
-            MediaSource mediaSource = buildMediaSource(uri, null, dataSourceFactory, context);
+            MediaSource mediaSource = buildMediaSource(uri, null, dataSourceFactory, null, context);
             Log.e(TAG, "VideoPlayer: URI LINK "+uri.toString() );
             exoPlayer.prepare(mediaSource);
 
@@ -139,7 +138,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                 Result result) {
             this.eventChannel = eventChannel;
             this.textureEntry = textureEntry;
-            DefaultDrmSessionManager<FrameworkMediaCrypto> drmSessionManager = null;
+            DefaultDrmSessionManager<ExoMediaCrypto> drmSessionManager = null;
             //Add Custom DRM Management
             HttpDataSource.Factory httpDataSourceFactory = new DefaultHttpDataSourceFactory(Util.getUserAgent(context, "ExoPlayerDemo"));
 
@@ -183,9 +182,8 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
 
             DefaultRenderersFactory renderersFactory =
                     new DefaultRenderersFactory(context);
-            TrackSelector trackSelector = new DefaultTrackSelector();
             exoPlayer =
-                    ExoPlayerFactory.newSimpleInstance(context,renderersFactory, trackSelector,loadControl, drmSessionManager);
+                    new SimpleExoPlayer.Builder(context, renderersFactory).setLoadControl(loadControl).build();
            // exoPlayer = ExoPlayerFactory.newSimpleInstance(context, trackSelector);
             Uri uri = Uri.parse(mediaContent.uri);
 
@@ -201,7 +199,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                                 DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS,
                                 true);
             }
-            MediaSource mediaSource = buildMediaSource(uri, mediaContent.extension, dataSourceFactory, context);
+            MediaSource mediaSource = buildMediaSource(uri, mediaContent.extension, dataSourceFactory, drmSessionManager, context);
             exoPlayer.prepare(mediaSource);
 
             setupVideoPlayer(context, eventChannel, textureEntry, result);
@@ -216,27 +214,30 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
         }
 
         private MediaSource buildMediaSource(
-                Uri uri, String extension, DataSource.Factory mediaDataSourceFactory, Context context) {
+                Uri uri, String extension, DataSource.Factory mediaDataSourceFactory, DefaultDrmSessionManager<ExoMediaCrypto> drmSessionManager, Context context) {
             @C.ContentType int contenttype = Util.inferContentType(uri, extension);
             Log.e(TAG, "buildMediaSource: CONTENT TYPE "+contenttype  );
-            int type = Util.inferContentType(uri.getLastPathSegment());
+            int type = Util.inferContentType(Objects.requireNonNull(uri.getLastPathSegment()));
             Log.e(TAG, "buildMediaSource: THe  CONTENT TYPE "+type  );
             switch (contenttype) {
                 case C.TYPE_SS:
                     return new SsMediaSource.Factory(
                             new DefaultSsChunkSource.Factory(mediaDataSourceFactory),
                             new DefaultDataSourceFactory(context, null, mediaDataSourceFactory))
+                            .setDrmSessionManager(drmSessionManager)
                             .createMediaSource(uri);
                 case C.TYPE_DASH:
                     return new DashMediaSource.Factory(
                             new DefaultDashChunkSource.Factory(mediaDataSourceFactory),
                             new DefaultDataSourceFactory(context, null, mediaDataSourceFactory))
+                            .setDrmSessionManager(drmSessionManager)
                             .createMediaSource(uri);
                 case C.TYPE_HLS:
-                    return new HlsMediaSource.Factory(mediaDataSourceFactory).createMediaSource(uri);
+                    return new HlsMediaSource.Factory(mediaDataSourceFactory)
+                            .setDrmSessionManager(drmSessionManager)
+                            .createMediaSource(uri);
                 case C.TYPE_OTHER:
-                    return new ExtractorMediaSource.Factory(mediaDataSourceFactory)
-                            .setExtractorsFactory(new DefaultExtractorsFactory())
+                    return new ProgressiveMediaSource.Factory(mediaDataSourceFactory)
                             .createMediaSource(uri);
                 default: {
                     throw new IllegalStateException("Unsupported type: " + type);
@@ -316,13 +317,13 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             eventSink.success(event);
         }
 
-        @SuppressWarnings("deprecation")
         private static void setAudioAttributes(SimpleExoPlayer exoPlayer) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 exoPlayer.setAudioAttributes(
                         new AudioAttributes.Builder().setContentType(C.CONTENT_TYPE_MOVIE).build());
             } else {
-                exoPlayer.setAudioStreamType(C.STREAM_TYPE_MUSIC);
+                AudioAttributes audioAttributes = new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.CONTENT_TYPE_MUSIC).build();
+                exoPlayer.setAudioAttributes(audioAttributes);
             }
         }
 
@@ -351,7 +352,6 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             return exoPlayer.getCurrentPosition();
         }
 
-        @SuppressWarnings("SuspiciousNameCombination")
         private void sendInitialized() {
             if (isInitialized) {
                 Map<String, Object> event = new HashMap<>();
@@ -396,12 +396,9 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                 new MethodChannel(registrar.messenger(), "flutter.io/videoPlayer");
         channel.setMethodCallHandler(plugin);
         registrar.addViewDestroyListener(
-                new PluginRegistry.ViewDestroyListener() {
-                    @Override
-                    public boolean onViewDestroy(FlutterNativeView view) {
-                        plugin.onDestroy();
-                        return false; // We are not interested in assuming ownership of the NativeView.
-                    }
+                view -> {
+                    plugin.onDestroy();
+                    return false; // We are not interested in assuming ownership of the NativeView.
                 });
     }
 
@@ -430,7 +427,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
     }
 
     @Override
-    public void onMethodCall(MethodCall call, Result result) {
+    public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
         TextureRegistry textures = registrar.textures();
         if (textures == null) {
             result.error("no_activity", "video_player plugin requires a foreground activity", null);
@@ -502,7 +499,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                 break;
             }
             default: {
-                long textureId = ((Number) call.argument("textureId")).longValue();
+                long textureId = ((Number) Objects.requireNonNull(call.argument("textureId"))).longValue();
                 VideoPlayer player = videoPlayers.get(textureId);
                 if (player == null) {
                     result.error(
@@ -536,7 +533,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                 result.success(null);
                 break;
             case "seekTo":
-                int location = ((Number) call.argument("location")).intValue();
+                int location = ((Number) Objects.requireNonNull(call.argument("location"))).intValue();
                 player.seekTo(location);
                 result.success(null);
                 break;
@@ -555,7 +552,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
         }
     }
 
-    private static DefaultDrmSessionManager<FrameworkMediaCrypto> getDrmSessionManager(HttpDataSource.Factory httpDataSourceFactory, UUID uuid, Uri mpdUri, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession, Context context) throws UnsupportedDrmException
+    private static DefaultDrmSessionManager<ExoMediaCrypto> getDrmSessionManager(HttpDataSource.Factory httpDataSourceFactory, UUID uuid, Uri mpdUri, String licenseUrl, String[] keyRequestPropertiesArray, boolean multiSession, Context context) throws UnsupportedDrmException
     {
         // Drm manager
         HttpMediaDrmCallback drmCallback = new HttpMediaDrmCallback(licenseUrl, httpDataSourceFactory);
@@ -565,9 +562,19 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                         keyRequestPropertiesArray[i + 1]);
             }
         }
-        releaseMediaDrm();
-        mediaDrm = FrameworkMediaDrm.newInstance(uuid);
-        DefaultDrmSessionManager<FrameworkMediaCrypto> drmSessionManager = new DefaultDrmSessionManager<>(uuid, mediaDrm, drmCallback, null, multiSession);
+        releaseMediaDrm(uuid);
+        mediaDrm = uuid1 -> {
+            FrameworkMediaDrm fMediaDrm = null;
+            try {
+                fMediaDrm = FrameworkMediaDrm.newInstance(uuid1);
+            } catch (UnsupportedDrmException e) {
+                Log.e(TAG, "Unsupported DRM Exception", e);
+            }
+            assert fMediaDrm != null;
+            return fMediaDrm;
+        };
+
+        DefaultDrmSessionManager<ExoMediaCrypto> drmSessionManager = new DefaultDrmSessionManager.Builder().setUuidAndExoMediaDrmProvider(uuid, mediaDrm).setMultiSession(multiSession).build(drmCallback);
         // existing key set id
         byte[] offlineKeySetId = getStoredKeySetId(context);
         if (offlineKeySetId == null || !isLicenseValid(offlineKeySetId)){
@@ -586,12 +593,13 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                             DashManifest dashManifest = DashUtil.loadManifest(dataSource,
                                     mpdUri);
                             DrmInitData drmInitData = DashUtil.loadDrmInitData(dataSource, dashManifest.getPeriod(0));
+                            assert drmInitData != null;
                             byte[] offlineLicenseKeySetId = mOfflineLicenseHelper.downloadLicense(drmInitData);
                             storeKeySetId(offlineLicenseKeySetId,context);
                             // read license for logging purpose
                             isLicenseValid(offlineLicenseKeySetId);
 
-                            Log.d(TAG,"Licence Download Successful: "+ offlineLicenseKeySetId);
+                            Log.d(TAG,"Licence Download Successful: "+ Arrays.toString(offlineLicenseKeySetId));
                         } catch (Exception e) {
                             Log.e(TAG, "license download failed", e);
                         }
@@ -611,7 +619,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
 
     private static void storeKeySetId(byte[] keySetId,Context context)
     {
-        Log.d(TAG, "[LICENSE] Storing key set id value ... " + keySetId);
+        Log.d(TAG, "[LICENSE] Storing key set id value ... " + Arrays.toString(keySetId));
 
         if (keySetId != null)
         {
@@ -672,9 +680,9 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
         return false;
     }
 
-    private static void releaseMediaDrm() {
+    private static void releaseMediaDrm(UUID uuid) {
         if (mediaDrm != null) {
-            mediaDrm.release();
+            mediaDrm.acquireExoMediaDrm(uuid).release();;
             mediaDrm = null;
         }
     }
