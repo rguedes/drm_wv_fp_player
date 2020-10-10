@@ -21,7 +21,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.3.0'
+        classpath 'com.android.tools.build:gradle:4.0.2'
     }
 }
 
@@ -35,10 +35,10 @@ rootProject.allprojects {
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 30
 
     defaultConfig {
-        minSdkVersion 16
+        minSdkVersion 24
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     lintOptions {
@@ -52,9 +52,9 @@ android {
     }
 
     dependencies {
-        implementation 'com.google.android.exoplayer:exoplayer-core:2.9.6'
-        implementation 'com.google.android.exoplayer:exoplayer-hls:2.9.6'
-        implementation 'com.google.android.exoplayer:exoplayer-dash:2.9.6'
-        implementation 'com.google.android.exoplayer:exoplayer-smoothstreaming:2.9.6'
+        implementation 'com.google.android.exoplayer:exoplayer-core:2.11.1'
+        implementation 'com.google.android.exoplayer:exoplayer-hls:2.11.1'
+        implementation 'com.google.android.exoplayer:exoplayer-dash:2.11.1'
+        implementation 'com.google.android.exoplayer:exoplayer-smoothstreaming:2.11.1'
     }
 }
