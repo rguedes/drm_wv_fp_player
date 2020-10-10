@@ -7,12 +7,14 @@ package io.flutter.darwinvtomy.plugins.drm_wv_fp_player;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.SurfaceTexture;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
 import android.util.LongSparseArray;
 import android.util.Pair;
+import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
 
@@ -221,21 +223,24 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             Log.e(TAG, "buildMediaSource: THe  CONTENT TYPE "+type  );
             switch (contenttype) {
                 case C.TYPE_SS:
-                    return new SsMediaSource.Factory(
+                    SsMediaSource.Factory sSMediaSourceFactory = new SsMediaSource.Factory(
                             new DefaultSsChunkSource.Factory(mediaDataSourceFactory),
-                            new DefaultDataSourceFactory(context, null, mediaDataSourceFactory))
-                            .setDrmSessionManager(drmSessionManager)
-                            .createMediaSource(uri);
+                            new DefaultDataSourceFactory(context, null, mediaDataSourceFactory));
+                    if(drmSessionManager != null)
+                        sSMediaSourceFactory.setDrmSessionManager(drmSessionManager);
+                    return sSMediaSourceFactory.createMediaSource(uri);
                 case C.TYPE_DASH:
-                    return new DashMediaSource.Factory(
+                    DashMediaSource.Factory dAshMediaSourceFactory = new DashMediaSource.Factory(
                             new DefaultDashChunkSource.Factory(mediaDataSourceFactory),
-                            new DefaultDataSourceFactory(context, null, mediaDataSourceFactory))
-                            .setDrmSessionManager(drmSessionManager)
-                            .createMediaSource(uri);
+                            new DefaultDataSourceFactory(context, null, mediaDataSourceFactory));
+                    if(drmSessionManager != null)
+                        dAshMediaSourceFactory.setDrmSessionManager(drmSessionManager);
+                    return dAshMediaSourceFactory.createMediaSource(uri);
                 case C.TYPE_HLS:
-                    return new HlsMediaSource.Factory(mediaDataSourceFactory)
-                            .setDrmSessionManager(drmSessionManager)
-                            .createMediaSource(uri);
+                    HlsMediaSource.Factory hLsMediaSourceFactory = new HlsMediaSource.Factory(mediaDataSourceFactory);
+                    if(drmSessionManager != null)
+                        hLsMediaSourceFactory.setDrmSessionManager(drmSessionManager);
+                    return hLsMediaSourceFactory.createMediaSource(uri);
                 case C.TYPE_OTHER:
                     return new ProgressiveMediaSource.Factory(mediaDataSourceFactory)
                             .createMediaSource(uri);
@@ -270,10 +275,12 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                     ViewGroup.LayoutParams.MATCH_PARENT));
             exoPlayer.setVideoSurfaceView(surfaceView);
             exoPlayer.setVideoSurfaceHolder(surfaceView.getHolder());
-
             exoPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
             exoPlayer.setPlayWhenReady(true);
             exoPlayer.getPlaybackState();
+            SurfaceTexture surfaceTexture;
+            Surface surface = new Surface(textureEntry.surfaceTexture());
+            exoPlayer.setVideoSurface(surface);
             setAudioAttributes(exoPlayer);
 
             exoPlayer.addListener(
