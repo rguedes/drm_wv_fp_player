@@ -278,9 +278,6 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             exoPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
             exoPlayer.setPlayWhenReady(true);
             exoPlayer.getPlaybackState();
-            SurfaceTexture surfaceTexture;
-            Surface surface = new Surface(textureEntry.surfaceTexture());
-            exoPlayer.setVideoSurface(surface);
             setAudioAttributes(exoPlayer);
 
             exoPlayer.addListener(
