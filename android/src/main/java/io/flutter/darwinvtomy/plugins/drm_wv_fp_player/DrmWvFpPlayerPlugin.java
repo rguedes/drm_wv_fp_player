@@ -111,7 +111,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             exoPlayer = new SimpleExoPlayer.Builder(context, renderersFactory).build();
 
             Uri uri = Uri.parse(dataSource);
-            OFFLINE_KEY_ID = Base64.getUrlEncoder().encodeToString(uri.toString().getBytes(), Base64.DEFAULT);
+            OFFLINE_KEY_ID = Base64.encodeToString(uri.toString().getBytes(), Base64.DEFAULT);
 
             DataSource.Factory dataSourceFactory;
             if (isFileOrAsset(uri)) {
