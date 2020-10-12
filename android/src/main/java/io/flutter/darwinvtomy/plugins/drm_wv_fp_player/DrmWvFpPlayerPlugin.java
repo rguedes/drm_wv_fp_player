@@ -582,9 +582,6 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
 
         DefaultDrmSessionManager<ExoMediaCrypto> drmSessionManager = new DefaultDrmSessionManager.Builder().setUuidAndExoMediaDrmProvider(uuid, mediaDrm).setMultiSession(multiSession).build(drmCallback);
         // existing key set id
-        byte[] offlineKeySetId = getStoredKeySetId(context);
-        Log.d(TAG, "drmSessionManager: OFFLINE_KEY_ID "+OFFLINE_KEY_ID );
-        if (offlineKeySetId == null || !isLicenseValid(offlineKeySetId)){
             new Thread() {
 
 
@@ -613,14 +610,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
                     }
                 }
             }.start();
-        }else
-        {
-            Log.d(TAG, "[LICENSE] Restore offline license");
-
-            // Restores an offline license
-            drmSessionManager.setMode(DefaultDrmSessionManager.MODE_PLAYBACK, offlineKeySetId);
-        }
-
+        
         return drmSessionManager;
     }
 
