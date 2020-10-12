@@ -81,7 +81,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
     private static final String TAG = "VideoPlayerPlugin";
     private static ExoMediaDrm.Provider<FrameworkMediaCrypto> mediaDrm;
     private final static String PREF_NAME = "MOVIDONE_EXOPLAYER";
-    private final static String OFFLINE_KEY_ID = "OFFLINE_KEY_ID";
+    private static String OFFLINE_KEY_ID = "OFFLINE_KEY_ID";
     private static OfflineLicenseHelper<FrameworkMediaCrypto> mOfflineLicenseHelper;
 
     private static class VideoPlayer {
@@ -111,6 +111,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             exoPlayer = new SimpleExoPlayer.Builder(context, renderersFactory).build();
 
             Uri uri = Uri.parse(dataSource);
+            OFFLINE_KEY_ID = Base64.getUrlEncoder().encodeToString(uri.toString().getBytes(), Base64.DEFAULT)
 
             DataSource.Factory dataSourceFactory;
             if (isFileOrAsset(uri)) {
