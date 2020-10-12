@@ -110,9 +110,7 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context);
             exoPlayer = new SimpleExoPlayer.Builder(context, renderersFactory).build();
 
-            Uri uri = Uri.parse(dataSource);
-            OFFLINE_KEY_ID = Base64.encodeToString(uri.toString().getBytes(), Base64.DEFAULT);
-            Log.e(TAG, "VideoPlayer: OFFLINE_KEY_ID "+OFFLINE_KEY_ID );
+            Uri uri = Uri.parse(dataSource);           
 
             DataSource.Factory dataSourceFactory;
             if (isFileOrAsset(uri)) {
@@ -579,6 +577,8 @@ public class DrmWvFpPlayerPlugin implements MethodCallHandler {
             assert fMediaDrm != null;
             return fMediaDrm;
         };
+        OFFLINE_KEY_ID = Base64.encodeToString(mpdUri.toString().getBytes(), Base64.DEFAULT);
+        Log.e(TAG, "VideoPlayer: OFFLINE_KEY_ID "+OFFLINE_KEY_ID );
 
         DefaultDrmSessionManager<ExoMediaCrypto> drmSessionManager = new DefaultDrmSessionManager.Builder().setUuidAndExoMediaDrmProvider(uuid, mediaDrm).setMultiSession(multiSession).build(drmCallback);
         // existing key set id
